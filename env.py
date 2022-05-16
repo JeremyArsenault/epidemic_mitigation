@@ -31,6 +31,7 @@ class GridWorld:
                  prox_incent = 0,
                  num_incent = 0,
                  len_incent = 0,
+                 torodial = False,
                 ):
         """
         :n_iter: (int) number of steps to simulate for
@@ -45,6 +46,7 @@ class GridWorld:
         :prox_incent: (float) [0,1] incentive for l1 distance from world center (max of pop)
         :num_incent: (float) [0,1] incentive for number of agents interacted with (min of pop)
         :len_incent: (float) [0,1] incentive for length of interaction (min of pop)
+        :torodial: (bool) True if borderless / torodial environment
         """
         self.n_iter = n_iter
         self.dim_x = dim_x
@@ -57,6 +59,7 @@ class GridWorld:
         self.prox_incent = prox_incent
         self.num_incent = num_incent
         self.len_incent = len_incent
+        self.torodial = torodial
         
         # rendering
         self.viewer = None
@@ -128,6 +131,8 @@ class GridWorld:
         # population location
         for x in [self.agents[a][0]+i for i in [-1,0,1]]:
             for y in [self.agents[a][1]+i for i in [-1,0,1]]:
+                if self.torodial:
+                    x, y = x % self.dim_x, y % self.dim_y
                 if (x==-1) or (x==self.dim_x) or (y==-1) or (y==self.dim_y):
                     observation.append(-1)
                 else:
@@ -135,6 +140,8 @@ class GridWorld:
         # communication
         for x in [self.agents[a][0]+i for i in [-1,0,1]]:
             for y in [self.agents[a][1]+i for i in [-1,0,1]]:
+                if self.torodial:
+                    x, y = x % self.dim_x, y % self.dim_y
                 if (x==-1) or (x==self.dim_x) or (y==-1) or (y==self.dim_y):
                     observation += [-1 for _ in range(self.communication_layers)]
                 else:
@@ -162,12 +169,13 @@ class GridWorld:
         :returns: True if done, else False
         """
         # move agents
-        x, y = (action//3)-1, (action%3)-1
-        # self.agents[i] = [(self.agents[i][0]+x)%self.dim_x, (self.agents[i][1]+y)%self.dim_y] # toroidial
+        x, y = self.agents[a][0] + (action//3)-1, self.agents[a][1] + (action%3)-1
+        if self.torodial:
+            x, y = x % self.dim_x, y % self.dim_y
         # wall hit
-        if (self.agents[a][0]+x==-1) or (self.agents[a][0]+x==self.dim_x) or (self.agents[a][1]+y==-1) or (self.agents[a][1]+y==self.dim_y):
+        if (x==-1) or (x==self.dim_x) or (y==-1) or (y==self.dim_y):
             self.wall_moves[a] += 2 / self.n_iter
-        self.agents[a] = [min(max((self.agents[a][0]+x),0),self.dim_x-1), min(max((self.agents[a][1]+y),0),self.dim_y-1)]
+        self.agents[a] = [min(max((x),0),self.dim_x-1), min(max((y),0),self.dim_y-1)]
         
         # communication
         if comms is not None:
